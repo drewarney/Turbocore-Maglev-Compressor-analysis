@@ -72,7 +72,9 @@ Files: `cad_curves/stage1/`
    - **Convert Entities** on the imported shroud curve, from (r 33.5, z 0) to
      (r 51.69, z 22.75).
    - Close the region *outside* the impeller with lines:
-     (51.69, 22.75) → (51.69, 40) → (60, 40) → (60, −5) → (33.5, −5) → back to (33.5, 0).
+     (51.69, 22.75) → (51.69, 40) → (60, 40) → (60, −5) → (0, −5) → (0, 0) → (33.5, 0).
+     The strip below z = 0 also removes any leading-edge stubs poking upstream of the
+     eye plane.
    - Revolve-cut 360° about the Z centreline.
 
 ### 1c. Splitter
