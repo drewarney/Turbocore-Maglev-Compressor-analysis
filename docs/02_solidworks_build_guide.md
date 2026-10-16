@@ -59,8 +59,15 @@ Files: `cad_curves/stage1/`
    1.5 mm, and tick **Merge result**. (The drawing calls for 2.0 mm at the hub and 1.0 mm
    at the shroud. A constant 1.5 mm is a good approximation for CAD. For CFD, BladeGen
    or TurboGrid uses the true taper; see the CFD guide.)
-5. **Shroud trim (optional but neat):** revolve `shroud_meridional.txt` into a surface,
-   then use **Cut ▸ With Surface** to trim anything outside it.
+5. **Trim the blades (required).** Extend and Thicken leave small slivers sticking out
+   past the tip diameter and above the shroud line. Remove them with one **Revolved Cut**
+   after patterning (step 1d), with *Feature Scope = All bodies*. Sketch it on the Top
+   plane:
+   - **Convert Entities** on the imported shroud curve, from (r 33.5, z 0) to
+     (r 51.69, z 22.75).
+   - Close the region *outside* the impeller with lines:
+     (51.69, 22.75) → (51.69, 40) → (60, 40) → (60, −5) → (33.5, −5) → back to (33.5, 0).
+   - Revolve-cut 360° about the Z centreline.
 
 ### 1c. Splitter
 Repeat 1b with `splitter_hub_camber.txt` and `splitter_shroud_camber.txt`. They're
@@ -72,9 +79,20 @@ already rotated half a pitch (25.71°) and start at 30 % of the meridional lengt
 2. Fillet blade-to-hub R1.0. If the fillet fails, skip it; it doesn't affect the
    assembly.
 3. Hollow the bore: Ø18 H7 through.
-4. Check against the drawing: tip Ø103.4, eye Ø67.0, hub at eye Ø26.8, exit width
-   b2 = 8.26, overall length 34.0.
-5. Material: 7075-T6 aluminium.
+4. Do the revolved cut from step 1b-5 now, so it trims all 14 blades.
+5. **Verify with Section View** on the Top plane (it must match the TC-101 meridional view)
+   and the **Measure** tool:
+   | Check | Expected |
+   |---|---|
+   | Blade tips and disc OD | Ø103.4, flush, nothing proud of it |
+   | Hub diameter at the eye face (z = 0) | Ø26.8, a thin ring around the Ø18 bore, **not** a large flat face |
+   | Blade leading edge at z = 0 | straight radial line from r 13.4 to r 33.5 |
+   | Blade height at the trailing edge | 8.26 mm (z 22.75 → 31.0) |
+   | Overall axial length | 34.0 (31.0 + 3.0 backplate) |
+   | Wrap (LE to TE of one main blade, seen down the axis) | ≈ 80°, tip trailing the rotation |
+   | Splitter LE | ≈ 30 % along the passage, midway between main blades |
+   | Side silhouette | tall, trumpet-shaped hub rising from the disc to the eye, not a flat dish |
+6. Material: 7075-T6 aluminium.
 
 > **If Boundary Surface twists or fails:** use **Loft (surface)** between the two curves
 > with *Start/End constraints = None*. You can also cut the point files down: keep every
