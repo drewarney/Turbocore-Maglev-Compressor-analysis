@@ -1,0 +1,15 @@
+segment,x_from_mm,x_to_mm,diameter_mm,function
+1,85.00,95.00,22.0,impeller nut / nose cone
+2,95.00,129.01,18.0,stage-1 impeller seat
+3,129.01,152.03,24.0,interstage spacer sleeve
+4,152.03,186.04,18.0,stage-2 impeller seat
+5,186.04,205.00,32.0,seal sleeve
+6,205.00,225.00,30.0,front touchdown bearing journal
+7,225.00,285.00,50.0,front radial bearing rotor laminations
+8,285.00,300.00,40.0,shaft
+9,300.00,470.00,70.0,PM motor rotor (magnets + carbon-fibre sleeve)
+10,470.00,490.00,40.0,shaft
+11,490.00,550.00,50.0,rear radial bearing rotor laminations
+12,550.00,600.00,40.0,thrust-disk seat
+13,600.00,622.00,30.0,rear touchdown bearing journal
+14,622.00,632.00,20.0,axial / speed sensor target
