@@ -46,6 +46,12 @@ Files: `cad_curves/stage1/`
      r = 51.69, then back to the tip end of the hub curve (r = 51.69, z = 31.0).
 4. **Revolve** 360° about the centreline. This gives the disc and hub.
 
+> **Common mistake:** with both curves imported, it's easy to Convert the *shroud* curve
+> by accident. That gives a fat solid with a flat eye face out to Ø67, and it buries the
+> blades. The hub curve is the one that starts at **r = 13.4** at z = 0
+> (`hub_meridional.txt`, first line `13.4000 0.0000 0.0000`). The shroud curve starts at
+> r = 33.5. A correct section looks like a slim neck at the eye that flares into the disc.
+
 ### 1b. Main blade
 1. Import `main_hub_camber.txt` and `main_shroud_camber.txt`. These are the true 3D
    camber lines.
