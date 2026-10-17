@@ -116,6 +116,15 @@ def arc(cx, cy, r, a0, a1, n=30):
     return np.column_stack([cx + r * np.cos(a), cy + r * np.sin(a)])
 
 
+def offset_outward(zr, dist):
+    """Offset a shroud line (x, r) by dist along its outward normal (away from the hub)."""
+    t = np.gradient(zr, axis=0)
+    t /= np.linalg.norm(t, axis=1)[:, None]
+    n = np.column_stack([-t[:, 1], t[:, 0]])      # tangent rotated +90 deg: up at the eye, -x at the tip
+    n[0], n[-1] = (0.0, 1.0), (-1.0, 0.0)         # exact: shroud is axial at the eye, radial at the tip
+    return zr + dist * n
+
+
 def load_meridional(stage, x0):
     """Hub and shroud lines as (x, r) arrays in machine coordinates."""
     d = ROOT / "cad_curves" / f"stage{stage}"
@@ -143,8 +152,7 @@ def flowpath():
                                    (IMP1_X0, s1[0, 1] + TIP_CLEARANCE)], 15)])
     nose = arc(IMP1_X0, 0, nose_r, 180, 90, 12)
     nose[:, 0] = IMP1_X0 + (nose[:, 0] - IMP1_X0) * 10 / nose_r   # 10 mm long ellipse
-    shr1 = s1 + [0, 0]
-    shr1[:, 0] -= TIP_CLEARANCE                                    # casing offset
+    shr1 = offset_outward(s1, TIP_CLEARANCE)                       # casing = blade tip + clearance
     # diffuser 1, crossover, return channel
     diff1_shr = np.array([[D1_SHR_X, R2], [D1_SHR_X, R3]])
     diff1_hub = np.array([[D1_HUB_X, R2], [D1_HUB_X, R3]])
@@ -158,8 +166,7 @@ def flowpath():
                         bezier([(RC_HUB_X, RC_INNER_R + 6), (RC_HUB_X, s2[0, 1] + 4),
                                 (IMP2_X0 - 4, s2[0, 1] + TIP_CLEARANCE),
                                 (IMP2_X0, s2[0, 1] + TIP_CLEARANCE)], 15)])
-    shr2 = s2.copy()
-    shr2[:, 0] -= TIP_CLEARANCE
+    shr2 = offset_outward(s2, TIP_CLEARANCE)
     diff2_shr = np.array([[D2_SHR_X, R2], [D2_SHR_X, R3]])
     diff2_hub = np.array([[D2_HUB_X, R2], [D2_HUB_X, R3]])
     return dict(inlet_shr=inlet_shr, nose=nose, hub1=h1, shr1=shr1, diff1_shr=diff1_shr,

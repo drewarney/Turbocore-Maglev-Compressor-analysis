@@ -123,52 +123,71 @@ result: eye Ø54.0, hub at eye Ø25.9, b2 = 4.21.
 
 ## 4. Inlet housing and IGVs (TC-110)
 
-> **Machine parts use DXF profiles, not XYZ curves.** The gas-path walls have sharp
-> corners, which a single *Curve Through XYZ Points* spline can't follow. Every revolved
-> casing part therefore has a ready-made **closed DXF profile** in `cad_curves/profiles/`.
-> The profiles are in machine coordinates (X along the axis, r up), drawn on the Front
-> plane.
+**How the casing sketches work (sections 4–5).** The gas-path walls have sharp corners,
+so they come as separate smooth curves in `cad_curves/flowpath/`, one file per curved
+wall. Each curve ends exactly where the next wall starts. The straight walls between
+them you draw as ordinary sketch lines; `cad_curves/flowpath/README.txt` lists their
+coordinates. All files are in machine coordinates (X along the axis, Y = radius, Z = 0),
+so they land on the **Front plane**.
 
-**How to import a DXF profile (same for every part in sections 4–5):**
-1. New part (MMGS). **Insert ▸ DXF/DWG.** In older versions, use *File ▸ Open*, pick the
-   `.dxf`, and choose *Import to existing part*.
-2. In the import wizard:
-   - Choose **Import to existing part as 2D sketch** and select the **Front plane**.
-   - Units: **Millimeters**.
-   - Leave the entity origin at **0,0** (don't re-centre).
-   - Tick *Merge points*.
-3. Check one point with *Measure*. For the inlet, the corner at the flange bore must sit
-   at X = 0, Y = 51.0.
-4. Edit the sketch and draw a **centreline along the X axis** through the origin. Then
-   **Revolve** 360° about it. The profile is already closed, so it revolves directly.
+For each curved wall: **Insert ▸ Curve ▸ Curve Through XYZ Points ▸ Browse**, pick the
+file, OK. Then, inside your sketch, use **Convert Entities** on it. Snap your lines to the
+curve endpoints; SolidWorks picks up the coincident relation.
 
 Steps:
-1. Import `cad_curves/profiles/inlet_housing.dxf` and revolve it. This gives the flange,
-   the body, the Ø102 bore and the contraction to the stage-1 eye (Ø67.6 at X = 95).
-2. Check against TC-110: flange Ø210 × 20, body Ø144, Ø208 face at X = 95.
-3. Bolt holes: 8 × Ø18 on PCD 180.
-4. IGV vane: extrude a NACA 0012 profile, chord 40 mm (generate points with any NACA
+1. New part (MMGS). Import `cad_curves/flowpath/S1_inlet_contraction.txt`. It runs from
+   (X 70, r 51) to the stage-1 eye at (X 95, r 33.8).
+2. Sketch on the **Front plane**. Convert the S1 curve, then close the profile with lines
+   (X, r in mm):
+
+   (95, 33.8) → (95, 104) → (92, 104) → (78, 72) → (20, 72) → (20, 105) → (0, 105) →
+   (0, 51) → (70, 51), which joins back to the start of S1.
+
+   That's the eye face, the outer cone, the Ø144 body, the Ø210 × 20 flange, and the
+   Ø102 bore.
+3. Draw a centreline along the X axis through the origin and **Revolve** 360°.
+4. Check against TC-110: flange Ø210 × 20, body Ø144, eye opening Ø67.6 at X = 95.
+
+(Shortcut, if you ever want it: `cad_curves/profiles/inlet_housing.dxf` holds this same
+closed outline, ready to import with *Insert ▸ DXF/DWG*. The other casing parts have one
+too.)
+
+5. Bolt holes: 8 × Ø18 on PCD 180.
+6. IGV vane: extrude a NACA 0012 profile, chord 40 mm (generate points with any NACA
    tool, or trace TC-110), span from r = 6 to r = 51. Put the pivot pin Ø6 at 25 % chord,
    X = 40. Circular-pattern it ×8.
-5. The sync ring (Ø170) and pin bosses are cosmetic.
+7. The sync ring (Ø170) and pin bosses are cosmetic.
 
 ## 5. Compressor casing: flow path, diaphragm, de-swirl vanes (TC-120)
-Import each profile as in section 4 and revolve it about the X axis:
-1. **Compressor casing:** `cad_curves/profiles/compressor_casing.dxf`. This one part holds
-   the stage-1 shroud → diffuser-1 shroud wall → crossover outer bend → return-channel
-   downstream wall → stage-2 shroud → diffuser-2 shroud wall. Its front face at X = 95
-   mates with the inlet housing. The step at X = 160, r = 82 leaves room for the volute
-   (section 6).
-2. **Diaphragm:** `cad_curves/profiles/diaphragm.dxf`. This covers the diffuser-1 hub
-   wall, the crossover inner bend (R4.00) and the return-channel upstream wall, turning
-   down to the stage-2 eye. It has 1 mm clearance behind the stage-1 impeller and a Ø25
-   labyrinth bore over the interstage sleeve.
-3. **Fluid domain (for CFD later):** `cad_curves/profiles/fluid_domain.dxf` is the closed
-   gas path from the suction flange to the volute inlet. Revolve it into its own part,
-   then subtract the impellers when you get to CFD.
-   - `flowpath_walls.dxf` holds just the two open wall lines, for reference.
-   - `cad_curves/flowpath/` holds the same walls as separate smooth XYZ curves, plus the
-     straight-line coordinates in `README.txt`, if you'd rather build the sketch yourself.
+Same method as section 4: import the curves, convert them into a Front-plane sketch,
+join them with lines, and revolve about the X axis.
+
+1. **Compressor casing** (the shroud side of the gas path). Import S2, S3, S4 and S5.
+   Build the closed profile in this order (X, r):
+   - (95, 104) → (95, 33.8): front face, which mates with the inlet housing
+   - **S2** stage-1 shroud → (117.45, 51.69)
+   - line → (118.17, 51.69), then line → (118.17, 80.11): diffuser-1 shroud wall
+   - **S3** crossover outer arc → (141.03, 80.11)
+   - line → (141.03, 46.0): return-channel downstream wall
+   - **S4** → (152.03, 27.3), then **S5** stage-2 shroud → (178.54, 51.69)
+   - line → (179.05, 51.69), then line → (179.05, 80.11): diffuser-2 shroud wall
+   - line → (179.05, 82.11) → (160, 82.11) → (160, 128) → (108, 128) → (108, 104) →
+     back to (95, 104)
+
+   The step at X = 160, r = 82 leaves room for the volute (section 6).
+2. **Diaphragm** (between the two stages). Import H3 and H4.
+   - (130.01, 52.69) → (125.60, 52.69) → (125.60, 80.11): diffuser-1 hub wall
+   - **H3** crossover inner arc → (133.60, 80.11)
+   - line → (133.60, 40.0): return-channel upstream wall
+   - **H4** down toward the stage-2 eye. Draw a vertical line at X = 150.3 and **Trim**
+     H4 there, which leaves a 1.7 mm gap to the stage-2 impeller.
+   - line down to (150.3, 12.5) → (130.01, 12.5) → back up to (130.01, 52.69)
+
+   This gives 1 mm clearance behind the stage-1 impeller back face and a Ø25 labyrinth
+   bore over the interstage sleeve.
+3. **Fluid domain (for CFD later):** do the same with all ten curves (S1–S5 and H1–H5)
+   plus the straight walls in `README.txt`, closing the profile along the axis from
+   (85, 0) to (0, 0) and up the inlet at X = 0. You don't need this until the CFD step.
 4. **De-swirl vanes (12):** on a plane at X = 137.3 (mid-channel), sketch one vane camber
    line from r = 80.1 at 66.6° from radial to r = 40 at 0° (radial). You can trace the
    1:2 plan on TC-120 or use a 3-point arc. Extrude it mid-plane through the channel width
