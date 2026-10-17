@@ -438,7 +438,7 @@ def sheet_igv(pdf):
     sh.notes([f"{L.IGV_COUNT} cantilevered vanes, span r = 6 to {L.SUCTION_ID / 2:.0f} mm, pivot pin Ø6 through housing wall.",
               "Range 0 deg (open) to 70 deg closed; prewhirl in rotation direction reduces capacity.",
               "For CFD at design point model IGVs at 0 deg or omit them (they are a pressure-drop item).",
-              "Inlet contraction to the eye: use cad_curves/flowpath_shroud.txt (spline)."],
+              "Profile ready to revolve: cad_curves/profiles/inlet_housing.dxf (Front plane, X axis)."],
              x=14, y=62, size=5.6)
     sh.save(pdf, OUT / "TC-110.png")
 
@@ -497,8 +497,8 @@ def sheet_casing(pdf):
                        ("Exit r / metal angle", f"{L.RC_INNER_R:.0f} / 0° (no swirl)"),
                        ("Thickness", "3 mm, round LE, sharp TE"),
                        ("Camber law", "β = β_in (1-f)^1.5")], [32, 55], size=5.2, row_h=4.0)
-    sh.notes(["Flow path walls exported as cad_curves/flowpath_*.txt (X r 0) - use Curve Through XYZ",
-              "  Points on the Front plane, then Revolve about the X axis.",
+    sh.notes(["Closed profiles: cad_curves/profiles/*.dxf (casing, diaphragm, fluid) - import onto",
+              "  the Front plane and Revolve about the X axis. Pieces: cad_curves/flowpath/.",
               "Split the casting at diffuser-1 hub wall (diaphragm) & diffuser-2 hub wall (bearing housing).",
               "Diaphragm is held by the de-swirl vanes; it carries the interstage labyrinth at Ø26."],
              x=14, y=60, size=5.6)
@@ -700,17 +700,122 @@ def sheet_cfd(pdf):
     sh.save(pdf, OUT / "CFD-001.png")
 
 
+def dedupe(pts, tol=1e-3):
+    """Drop consecutive points closer than tol (SolidWorks rejects coincident points)."""
+    pts = np.asarray(pts, float)
+    keep = [0] + [i for i in range(1, len(pts)) if np.linalg.norm(pts[i] - pts[i - 1]) > tol]
+    return pts[keep]
+
+
+def write_dxf(path, polylines):
+    """Minimal R12 DXF of LINE entities in the XY plane. polylines = [(layer, pts, closed)]."""
+    out = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "9", "$INSUNITS", "70", "4",
+           "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES"]
+    for layer, pts, closed in polylines:
+        pts = dedupe(pts)
+        if closed and np.linalg.norm(pts[0] - pts[-1]) < 1e-3:
+            pts = pts[:-1]
+        segs = list(zip(pts[:-1], pts[1:])) + ([(pts[-1], pts[0])] if closed else [])
+        for a, b in segs:
+            out += ["0", "LINE", "8", layer, "10", f"{a[0]:.4f}", "20", f"{a[1]:.4f}", "30", "0.0",
+                    "11", f"{b[0]:.4f}", "21", f"{b[1]:.4f}", "31", "0.0"]
+    out += ["0", "ENDSEC", "0", "EOF"]
+    path.write_text("\n".join(out) + "\n")
+
+
+def self_intersects(pts):
+    pts = dedupe(pts)
+    n = len(pts)
+    segs = [(pts[i], pts[(i + 1) % n]) for i in range(n)]
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    for i in range(n):
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue
+            (p1, p2), (q1, q2) = segs[i], segs[j]
+            if (cross(p1, p2, q1) * cross(p1, p2, q2) < 0) and (cross(q1, q2, p1) * cross(q1, q2, p2) < 0):
+                return True
+    return False
+
+
+def casing_profiles():
+    """Closed (X, r) profiles for the stationary aero parts, ready to revolve about X."""
+    f = FP
+    r_eye = f["shr1"][0, 1]
+    inlet_wall = f["inlet_shr"]                                   # (0, 51) -> eye (95, r_eye)
+    inlet = np.vstack([[[0, L.SUCTION_FLANGE_OD / 2], [L.SUCTION_FLANGE_T, L.SUCTION_FLANGE_OD / 2],
+                        [L.SUCTION_FLANGE_T, 72], [78, 72], [92, 104], [L.IMP1_X0, 104]],
+                       [[L.IMP1_X0, r_eye]], inlet_wall[::-1]])
+    shroud_wall = np.vstack([f["shr1"], [[L.D1_SHR_X, L.R2], [L.D1_SHR_X, L.R3]], f["bend_out"],
+                             f["rc_shr"], f["shr2"], [[L.D2_SHR_X, L.R2], [L.D2_SHR_X, L.R3]]])
+    vol_in = VOL[1][2] - VOL[1][1] / 2                             # volute inner radius ~82
+    casing = np.vstack([[[L.IMP1_X0, 104]], shroud_wall,
+                        [[L.D2_SHR_X, vol_in], [160, vol_in], [160, 128], [108, 128], [108, 104]]])
+    clr = 1.0
+    x_back = L.X1_TIP_HUB + L.BACKPLATE_T + clr                    # 1 mm behind impeller-1 back face
+    r_bore = 12.5                                                  # labyrinth over the Ø24 spacer
+    hub_wall = f["rc_hub"]
+    hub_wall = hub_wall[hub_wall[:, 0] <= L.IMP2_X0 - clr]
+    diaphragm = np.vstack([[[L.D1_HUB_X, L.R2 + clr]], [[L.D1_HUB_X, L.R3]], f["bend_in"], hub_wall,
+                           [[hub_wall[-1, 0], r_bore], [x_back, r_bore], [x_back, L.R2 + clr]]])
+    return dict(inlet_housing=inlet, compressor_casing=casing, diaphragm=diaphragm,
+                fluid_domain=fluid_polygon())
+
+
 def export_flowpath_curves():
     d = L.ROOT / "cad_curves"
-    def w(name, pts):
-        (d / name).write_text("\n".join(f"{x:.4f} {r:.4f} 0.0000" for x, r in pts) + "\n")
+    for old in ("flowpath_shroud.txt", "flowpath_hub.txt"):
+        (d / old).unlink(missing_ok=True)
+    fd = d / "flowpath"
+    fd.mkdir(exist_ok=True)
+    for old in fd.glob("*"):
+        old.unlink()
     f = FP
-    shroud = np.vstack([f["inlet_shr"], f["shr1"], [[L.D1_SHR_X, L.R2], [L.D1_SHR_X, L.R3]],
-                        f["bend_out"], f["rc_shr"], f["shr2"], [[L.D2_SHR_X, L.R2], [L.D2_SHR_X, L.R3]]])
-    hub = np.vstack([f["nose"], f["hub1"], [[L.D1_HUB_X, L.R2], [L.D1_HUB_X, L.R3]], f["bend_in"],
-                     f["rc_hub"], f["hub2"], [[L.D2_HUB_X, L.R2], [L.D2_HUB_X, L.R3]]])
-    w("flowpath_shroud.txt", shroud)
-    w("flowpath_hub.txt", hub)
+    # smooth curved segments only (straight walls are plain sketch lines - see README.txt)
+    curves = [("S1_inlet_contraction", f["inlet_shr"][1:]), ("S2_stage1_shroud", f["shr1"]),
+              ("S3_crossover_outer_arc", f["bend_out"]), ("S4_return_to_eye2_shroud", f["rc_shr"][1:]),
+              ("S5_stage2_shroud", f["shr2"]), ("H1_nose", f["nose"]), ("H2_stage1_hub", f["hub1"]),
+              ("H3_crossover_inner_arc", f["bend_in"]), ("H4_return_to_eye2_hub", f["rc_hub"][1:]),
+              ("H5_stage2_hub", f["hub2"])]
+    for name, pts in curves:
+        pts = dedupe(pts)
+        (fd / f"{name}.txt").write_text("\n".join(f"{x:.4f} {r:.4f} 0.0000" for x, r in pts) + "\n")
+    lines = [
+        ("S0 inlet straight", (0, L.SUCTION_ID / 2), tuple(f["inlet_shr"][1])),
+        ("S2->diffuser-1 shroud", tuple(f["shr1"][-1]), (L.D1_SHR_X, L.R2)),
+        ("diffuser-1 shroud wall", (L.D1_SHR_X, L.R2), (L.D1_SHR_X, L.R3)),
+        ("return channel downstream wall", (L.RC_HUB_X, L.R3), tuple(f["rc_shr"][1])),
+        ("S5->diffuser-2 shroud", tuple(f["shr2"][-1]), (L.D2_SHR_X, L.R2)),
+        ("diffuser-2 shroud wall", (L.D2_SHR_X, L.R2), (L.D2_SHR_X, L.R3)),
+        ("H2->diffuser-1 hub", tuple(f["hub1"][-1]), (L.D1_HUB_X, L.R2)),
+        ("diffuser-1 hub wall", (L.D1_HUB_X, L.R2), (L.D1_HUB_X, L.R3)),
+        ("return channel upstream wall", (L.RC_SHR_X, L.R3), tuple(f["rc_hub"][1])),
+        ("H5->diffuser-2 hub", tuple(f["hub2"][-1]), (L.D2_HUB_X, L.R2)),
+        ("diffuser-2 hub wall", (L.D2_HUB_X, L.R2), (L.D2_HUB_X, L.R3)),
+    ]
+    txt = ["Meridional flow-path pieces (machine coordinates: X along the axis, r = Y, Z = 0).",
+           "Sketch on the FRONT plane. Easiest: import the DXFs in ../profiles instead.", "",
+           "Curves (Insert > Curve > Curve Through XYZ Points, one file each):"]
+    txt += [f"  {n}.txt" for n, _ in curves]
+    txt += ["", "Straight walls (draw as sketch lines, X r in mm):"]
+    txt += [f"  {n:32s} ({a[0]:.3f}, {a[1]:.3f}) -> ({b[0]:.3f}, {b[1]:.3f})" for n, a, b in lines]
+    (fd / "README.txt").write_text("\n".join(txt) + "\n")
+
+    pd = d / "profiles"
+    pd.mkdir(exist_ok=True)
+    profs = casing_profiles()
+    for name, pts in profs.items():
+        assert not self_intersects(pts), f"{name} profile self-intersects"
+        write_dxf(pd / f"{name}.dxf", [(name.upper(), pts, True)])
+    walls = [("SHROUD", np.vstack([f["inlet_shr"], f["shr1"], [[L.D1_SHR_X, L.R2], [L.D1_SHR_X, L.R3]],
+                                   f["bend_out"], f["rc_shr"], f["shr2"],
+                                   [[L.D2_SHR_X, L.R2], [L.D2_SHR_X, L.R3]]]), False),
+             ("HUB", np.vstack([f["nose"], f["hub1"], [[L.D1_HUB_X, L.R2], [L.D1_HUB_X, L.R3]],
+                                f["bend_in"], f["rc_hub"], f["hub2"],
+                                [[L.D2_HUB_X, L.R2], [L.D2_HUB_X, L.R3]]]), False)]
+    write_dxf(pd / "flowpath_walls.dxf", walls)
+
     rows = ["theta_deg,section_dia_mm,centre_radius_mm,area_mm2,x_mm"]
     rows += [f"{t:.1f},{dd:.3f},{rc:.3f},{math.pi * dd * dd / 4:.1f},{L.VOLUTE_X:.3f}" for t, dd, rc in VOL]
     (d / "volute_sections.csv").write_text("\n".join(rows) + "\n")

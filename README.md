@@ -26,7 +26,8 @@ step-by-step SolidWorks and Ansys guides.
 | `cad_curves/stageN/*.txt` | Impeller hub/shroud meridional lines and blade camber lines for SolidWorks *Curve Through XYZ Points* (mm, local Z = axis) |
 | `cad_curves/stageN/*.curve` | The same blades as TurboGrid curve files |
 | `cad_curves/stageN/impeller_table.csv` | Blade angle and wrap table (also for BladeGen) |
-| `cad_curves/flowpath_hub.txt`, `flowpath_shroud.txt` | Whole gas-path walls, suction to volute (machine X, r) |
+| `cad_curves/profiles/*.dxf` | Closed, ready-to-revolve profiles: inlet housing, compressor casing, diaphragm, fluid domain (Front plane, machine X / r) |
+| `cad_curves/flowpath/` | The same gas-path walls as separate smooth XYZ curves, with straight-wall coordinates in `README.txt` |
 | `cad_curves/volute_sections.csv`, `rotor_segments.csv` | Volute sections, shaft steps |
 | `docs/design_point.json` | Every computed number (cycle, power, both stages) |
 | `scripts/` | Generators (see below) |
