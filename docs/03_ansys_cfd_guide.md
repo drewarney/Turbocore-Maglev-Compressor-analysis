@@ -123,9 +123,12 @@ The `.curve` files in `cad_curves/stage1/` are made for TurboGrid:
 - Use *Intel MPI Local Parallel*, 4–8 cores. Expect 1–2 h for 400 k nodes.
 - Add **monitors** (Output Control ▸ Monitor ▸ Expression) and watch them flatten:
   ```
-  PRtt  = massFlowAve(Total Pressure in Stn Frame)@R1 Outlet / massFlowAve(Total Pressure in Stn Frame)@R1 Inlet
+  PRtt  = (massFlowAve(Total Pressure in Stn Frame)@R1 Outlet + 300 [kPa]) / (massFlowAve(Total Pressure in Stn Frame)@R1 Inlet + 300 [kPa])
   T0out = massFlowAve(Total Temperature in Stn Frame)@R1 Outlet
   ```
+  CFX reports pressures **relative to the reference pressure**, so the expression adds the
+  300 kPa back. Without it the ratio comes out meaningless. Use absolute values
+  (CFD number + 300 kPa) in `cfd_postprocess.py` too.
 - **Converged** means: RMS residuals ≤ 1e-5 (1e-4 is acceptable), mass imbalance below
   0.1 %, and PR/T0 flat for at least 100 iterations.
 - If it diverges early: drop the timescale factor to 0.5. Start with a lower mass flow,
