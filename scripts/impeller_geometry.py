@@ -31,6 +31,9 @@ SPLITTER_START = 0.30          # splitter leading edge at 30 % meridional length
 INCIDENCE_DEG = 2.0            # blade inlet angle = flow angle + incidence
 T_HUB, T_SHROUD = 2.0, 1.0     # blade thickness, mm (hub / shroud)
 AXIAL_LEN_RATIO = 0.30         # impeller axial length / D2
+TIP_CLEARANCE = 0.30           # open-impeller running clearance, mm (matches layout.py)
+DIFF_RATIO = 1.55              # vaneless diffuser exit radius / tip radius (matches layout.py)
+INLET_EXT = 20.0               # TurboGrid inlet extension upstream of the eye, mm
 
 
 def bezier(p, n=N_PTS):
@@ -99,6 +102,45 @@ def thick_profile(zr, theta, t_mm, phase=0.0):
     return np.vstack([ss, ps[::-1][1:]])
 
 
+def offset_outward(zr, dist):
+    """Offset a shroud line (z, r) by dist along its outward normal (axial at eye, radial at tip)."""
+    t = np.gradient(zr, axis=0)
+    t /= np.linalg.norm(t, axis=1)[:, None]
+    n = np.column_stack([-t[:, 1], t[:, 0]])
+    n[0], n[-1] = (0.0, 1.0), (-1.0, 0.0)
+    return zr + dist * n
+
+
+def write_turbogrid(out, s, hub, shroud, L, main_h, main_s, spl_h, spl_s, pitch):
+    """TurboGrid inputs: hub/shroud span the whole passage (inlet extension + vaneless
+    diffuser to R3); shroud = casing (blade tip + clearance); blade profiles lie ON the
+    hub and ON the casing so TurboGrid can cut the tip gap itself. No comment lines."""
+    b2 = s["b2"] * 1000
+    r2, r3 = shroud[-1, 1], DIFF_RATIO * shroud[-1, 1]
+    casing = offset_outward(shroud, TIP_CLEARANCE)
+    z_shr_wall = (L - b2) + 0.05 * b2              # diffuser walls pinch to b3 = 0.9 b2
+    z_hub_wall = L - 0.05 * b2
+    ramp = np.linspace(0, 1, 6)[1:]
+    hub_ext = np.vstack([[[-INLET_EXT, hub[0, 1]], [-INLET_EXT / 2, hub[0, 1]]], hub,
+                         np.column_stack([L + (z_hub_wall - L) * ramp, r2 + 2.0 * ramp]),
+                         np.column_stack([np.full(8, z_hub_wall), np.linspace(r2 + 2.0, r3, 9)[1:]])])
+    z_c = casing[-1, 0]
+    shr_ext = np.vstack([[[-INLET_EXT, casing[0, 1]], [-INLET_EXT / 2, casing[0, 1]]], casing,
+                         np.column_stack([z_c + (z_shr_wall - z_c) * ramp, r2 + 2.0 * ramp]),
+                         np.column_stack([np.full(8, z_shr_wall), np.linspace(r2 + 2.0, r3, 9)[1:]])])
+    for name, line in (("hub.curve", hub_ext), ("shroud.curve", shr_ext)):
+        (out / name).write_text("\n".join(f"{r:.4f} 0.0000 {z:.4f}" for z, r in line) + "\n")
+    for name, (h, sh_, ph) in {"main_profile.curve": (main_h, main_s, 0.0),
+                                "splitter_profile.curve": (spl_h, spl_s, pitch / 2)}.items():
+        zr_s = offset_outward(sh_[0], TIP_CLEARANCE) if len(sh_[0]) == len(shroud) else \
+            offset_outward(shroud, TIP_CLEARANCE)[-len(sh_[0]):]
+        lines = []
+        for k, (zr, th, t) in enumerate(((h[0], h[1], T_HUB), (zr_s, sh_[1], T_SHROUD)), 1):
+            lines.append(f"#Profile {k}")
+            lines += [f"{x:.4f} {y:.4f} {z:.4f}" for x, y, z in thick_profile(zr, th, t, ph)]
+        (out / name).write_text("\n".join(lines) + "\n")
+
+
 def write_xyz(path, pts):
     path.write_text("\n".join(f"{x:.4f} {y:.4f} {z:.4f}" for x, y, z in pts) + "\n")
 
@@ -135,20 +177,7 @@ def main():
         write_xyz(out / "splitter_hub_camber.txt", to_xyz(zhs, th_hs, pitch / 2))
         write_xyz(out / "splitter_shroud_camber.txt", to_xyz(zss, th_ss, pitch / 2))
 
-        # TurboGrid curve files
-        (out / "hub.curve").write_text("# hub, x y z [mm]\n" + "\n".join(
-            f"{r:.4f} 0.0 {z:.4f}" for z, r in hub) + "\n")
-        (out / "shroud.curve").write_text("# shroud, x y z [mm]\n" + "\n".join(
-            f"{r:.4f} 0.0 {z:.4f}" for z, r in shroud) + "\n")
-        for name, (a, ta, b, tb, ph) in {
-            "main_profile.curve": (zh, th_h, zs, th_s, 0.0),
-            "splitter_profile.curve": (zhs, th_hs, zss, th_ss, pitch / 2),
-        }.items():
-            lines = ["# blade profiles, x y z [mm]; Profile 1 = hub, Profile 2 = shroud"]
-            for k, (zr, th, t) in enumerate(((a, ta, T_HUB), (b, tb, T_SHROUD)), 1):
-                lines.append(f"## Profile {k}")
-                lines += [f"{x:.4f} {y:.4f} {z:.4f}" for x, y, z in thick_profile(zr, th, t, ph)]
-            (out / name).write_text("\n".join(lines) + "\n")
+        write_turbogrid(out, s, hub, shroud, L, (zh, th_h), (zs, th_s), (zhs, th_hs), (zss, th_ss), pitch)
 
         rows = ["m_norm,hub_z_mm,hub_r_mm,hub_beta_deg,hub_wrap_deg,"
                 "shroud_z_mm,shroud_r_mm,shroud_beta_deg,shroud_wrap_deg"]

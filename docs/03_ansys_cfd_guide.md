@@ -56,26 +56,29 @@ R-513A material.
 ## PATH A: stage-1 impeller, single passage (CFX)
 
 ### A1. Geometry in TurboGrid (Workbench ▸ *TurboGrid* component)
+The `.curve` files in `cad_curves/stage1/` are made for TurboGrid:
+- `hub.curve` and `shroud.curve` cover the whole passage: a 20 mm straight inlet ahead
+  of the eye, the impeller, and the vaneless diffuser out to r = 80.1 mm.
+- The shroud is the **casing**, which is the blade tip plus 0.3 mm.
+- The blade profiles lie on the hub (`#Profile 1`) and on the casing (`#Profile 2`).
+  TurboGrid trims the tip gap itself.
+
 1. **File ▸ Load Curves.**
    - Machine type: *Centrifugal Compressor*
-   - Axis: **Z**; units: **mm**; coordinates: *Cartesian*
-   - Hub: `cad_curves/stage1/hub.curve`
-   - Shroud: `cad_curves/stage1/shroud.curve`
-   - Blade: `cad_curves/stage1/main_profile.curve` (Profile 1 = hub, Profile 2 = shroud)
+   - Rotation axis: **Z**; length units: **mm**; coordinates: *Cartesian*
+   - Hub: `hub.curve`; Shroud: `shroud.curve`
+   - Blade: `main_profile.curve`
    - Number of bladesets: **7**
-2. Add the splitter: **Insert ▸ Blade Set ▸ … ▸ Blade 2** using `splitter_profile.curve`.
-   (In newer TurboGrid versions, this lives under *Blade Set ▸ Number of blades in set = 2*.)
-3. *Hub tip / Shroud tip:* set **Shroud Tip = Normal Distance, 0.30 mm**. The impeller is
-   open; this matters for efficiency.
-4. Inlet: extend the hub and shroud 20 mm upstream of the eye (Inlet ▸ *Use extension*).
-   Outlet: put it at the diffuser exit, r = 80.1 mm, so the vaneless diffuser sits in the
-   rotating domain. That's simpler than a separate stator domain.
+2. Add the splitter: in the Blade Set, set the number of blades to **2** and load
+   `splitter_profile.curve` as Blade 2.
+3. **Shroud Tip:** set it to *Normal Distance*, **0.30 mm**. **Hub Tip:** *None*.
+4. **Inlet / Outlet:** keep them at the start and end of the hub/shroud curves. Those are
+   X = −20 mm (inlet) and r = 80.1 mm (diffuser exit).
 
-> **If TurboGrid complains about the profile format,** open the `.curve` file. Each
-> profile block starts with `## Profile N` and has `x y z` rows. Some versions want the
-> separator line as just `#`. Edit it in Notepad, or load the hub/shroud camber `.txt`
-> files into **BladeGen** instead. In BladeGen, use *Import Meridional + Angle/Thickness*
-> with the table in `impeller_table.csv`, then *Export to TurboGrid*.
+> **If TurboGrid won't read the profile file:** open it in Notepad. Some versions want a
+> plain `#` separator line between profiles instead of `#Profile 1` / `#Profile 2`. The
+> fallback is BladeGen: import `impeller_table.csv` (meridional coordinates plus β/θ),
+> then *Export TurboGrid Input Files*.
 
 ### A2. Mesh
 1. Topology: **ATM Optimized** (default). Enable *Splitter* if it asks.
