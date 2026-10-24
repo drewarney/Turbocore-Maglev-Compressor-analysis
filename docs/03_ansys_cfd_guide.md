@@ -113,6 +113,21 @@ The `.curve` files in `cad_curves/stage1/` are made for TurboGrid:
    Check that it says *Rotational Periodicity, 51.43°*.
 5. **Boundaries:** hub = rotating no-slip wall. Shroud = **counter-rotating wall**
    (stationary in the absolute frame). Turbo Mode asks for this; tick it.
+   - **Make the diffuser hub stationary.** By default **R1 Hub** covers
+     `INBlock HUB, OUTBlock HUB, Passage HUB`, all rotating. **OUTBlock** is everything
+     after the blade trailing edge: the vaneless diffuser, which doesn't spin in the
+     real machine. Left rotating, it keeps adding swirl. You'll see angular momentum
+     (r·Cθ) *rise* between the impeller exit and the outlet, and the work and pressure
+     ratio come out too high.
+     1. Double-click **R1 Hub** → *Basic Settings* → **Location**: remove
+        **OUTBlock HUB**, leaving `INBlock HUB, Passage HUB` (nose and impeller hub
+        really do spin) → OK.
+     2. **Insert ▸ Boundary** → name **R1 Diffuser Hub** → Type **Wall**, Location
+        **OUTBlock HUB** → *Boundary Details*: **No Slip Wall**, tick **Wall Velocity**
+        → **Counter Rotating Wall** → OK.
+     3. Check: highlight OUTBlock HUB; it should start at the blade trailing edge
+        (r ≈ 51.7 mm). After the run, r·Cθ at the outlet should be equal to or
+        slightly *lower* than at the impeller exit.
 6. **Solver control:**
    - Advection: *High Resolution*. Timescale: *Auto*, Conservative, factor 1.
    - Iterations: 1000 maximum. Residual target **RMS 1e-5**.
