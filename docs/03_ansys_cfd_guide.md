@@ -60,7 +60,7 @@ R-513A material.
 > (lower-bound *Absolute Pressure* clipping warnings in the Out file) and PR and T0 fall
 > back to about 1.0 and the inlet value. At **285 K** (5.7 K superheat) the gas stays dry
 > up to about 208 m/s, above the peak relative velocity in the eye. Density is only 2.8 %
-> lower, so keep P0 = 364.26 kPa and ṁ = 3.343 kg/s. Expect T0 out ≈ 302–304 K. Stage 2
+> lower, so keep P0 = 364.26 kPa and ṁ = 3.343 kg/s. Expect T0 out ≈ 311 K (real-gas: the ~16.5 kJ/kg of work gives a bigger temperature rise than cp·ΔT suggests). Stage 2
 > at 720.9 kPa / 305 K is fine as is (R-134a saturates at 300.9 K there; dry to about
 > 209 m/s). For the R-513A material keep 279.65 K.
 
