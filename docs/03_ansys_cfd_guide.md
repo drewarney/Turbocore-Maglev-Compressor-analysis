@@ -27,7 +27,8 @@ the design point and re-run `scripts/meanline.py`, refresh these numbers too.
 | Quantity | Stage 1 | Stage 2 |
 |---|---|---|
 | Inlet total pressure | 364.3 kPa abs | 720.9 kPa abs |
-| Inlet total temperature | 279.65 K (6.5 °C) | 305.0 K |
+| Inlet total temperature (R-513A) | 279.65 K (6.5 °C) | 305.0 K |
+| Inlet total temperature (**R134a stand-in**) | **285.0 K** (see note below) | 305.0 K |
 | Mass flow (full wheel) | 3.343 kg/s | 3.343 kg/s |
 | Speed | 30 000 rpm | 30 000 rpm |
 | Expected PR (meanline) | 1.98 | 1.97 |
@@ -50,6 +51,18 @@ R-513A is R-1234yf/R-134a 56/44 wt%, an azeotrope that behaves like a pure fluid
 *Material Library ▸ Real Fluid ▸ Peng Robinson ▸ R134a*). R-513A was designed as a drop-in
 for R-134a. Expect the first answers within a few percent; then switch to the custom
 R-513A material.
+
+> **R134a stand-in: use T0 = 285 K for stage 1, not 279.65 K.** 279.65 K is the R-513A
+> suction state (3 K superheat at 364.26 kPa). R-134a has a lower vapour pressure: it
+> saturates at **279.33 K** at 364.26 kPa, so at 279.65 K it has only 0.3 K superheat and
+> starts to condense once the gas reaches about 55 m/s, i.e. in the impeller eye. The
+> library material is gas-only, so the density goes wrong, the absolute pressure collapses
+> (lower-bound *Absolute Pressure* clipping warnings in the Out file) and PR and T0 fall
+> back to about 1.0 and the inlet value. At **285 K** (5.7 K superheat) the gas stays dry
+> up to about 208 m/s, above the peak relative velocity in the eye. Density is only 2.8 %
+> lower, so keep P0 = 364.26 kPa and ṁ = 3.343 kg/s. Expect T0 out ≈ 302–304 K. Stage 2
+> at 720.9 kPa / 305 K is fine as is (R-134a saturates at 300.9 K there; dry to about
+> 209 m/s). For the R-513A material keep 279.65 K.
 
 ---
 
@@ -106,7 +119,8 @@ The `.curve` files in `cad_curves/stage1/` are made for TurboGrid:
    - Heat transfer: **Total Energy**. Turbulence: **SST**.
    - Reference pressure: **300 kPa**. Every pressure you type below is *relative* to it.
    - Inlet: **P-Total**, relative total pressure = 64.26 kPa (that's 364.26 kPa abs),
-     T-Total = 279.65 K, flow direction *normal to boundary*. Zero swirl means IGV fully
+     T-Total = **285 K for the R134a stand-in** (279.65 K only with an R-513A material;
+     see the note under *Design-point numbers*), flow direction *normal to boundary*. Zero swirl means IGV fully
      open.
    - Outlet: **Mass Flow Rate = 3.343 kg/s**, *Total for all sections*.
 4. **Interfaces:** Turbo Mode creates the **rotational periodic** pair automatically.
@@ -156,6 +170,8 @@ The `.curve` files in `cad_curves/stage1/` are made for TurboGrid:
    python scripts/cfd_postprocess.py --p0in 364.26 --t0in 279.65 \
           --p0out <from CFD> --t0out <from CFD> --mdot 3.343 --stage 1
    ```
+   The script uses R-513A properties. For an R134a run (inlet 285 K), work out PR and
+   η_tt with R-134a properties instead; the script's numbers will be off.
    This gives the real-gas PR and η_tt and compares them with the meanline (PR 1.98,
    work 16.5 kJ/kg). **Within 5–10 % = good.** Bigger gaps usually mean a wrong rotation
    sign, too coarse a tip-gap mesh, or a wrong reference pressure.
