@@ -196,8 +196,55 @@ For each speed (24k, 27k, 30k, 33k rpm):
    of picture Danfoss publishes for the TT series.
 
 ### A7. Stage 2
-Repeat with `cad_curves/stage2/*` and inlet P0 = 720.9 kPa abs (reference pressure about
-600 kPa), T0 = 305.0 K. For a true two-stage run, add both as components in Turbo Mode
+Repeat A1–A5 with `cad_curves/stage2/*`. Results from the design-point run are in
+`docs/04_stage2_cfd_results.md`. What changes from stage 1:
+
+1. **Reference pressure 600 kPa.** Inlet **P-Total = 120.9 kPa** relative (720.9 kPa abs),
+   **T-Total = 305 K**, normal to boundary. Outlet mass flow 3.343 kg/s, total for all
+   sectors.
+2. **Turn on Table Generation for the R134a material.** Without it the default
+   Peng-Robinson table stops at about 1 MPa absolute. Stage 2 runs to about 1.4 MPa. The
+   first stage-2 attempt clipped pressure at 1 MPa from iteration 1, ran away (Mach 81,
+   67 % outlet backflow) and overflowed at iteration 209. In *Materials ▸ R134a ▸ Table
+   Generation* use:
+
+   | Setting | Value |
+   |---|---|
+   | Min / max absolute pressure | 50 kPa / 4000 kPa |
+   | Min / max temperature | 240 K / 480 K |
+   | Maximum Points | 200 (per axis) |
+   | Extrapolation | off |
+
+   A run whose table was clipping can't be used as a restart; start fresh.
+3. Walls as stage 1: **R1 Hub** = `INBlock HUB, Passage HUB`; **R1 Shroud** and
+   **R1 Diffuser Hub** (OUTBlock HUB) are counter-rotating.
+4. **Every expression uses +600 kPa, not +300.** That goes for the solver monitors and
+   for CFD-Post. A project copied from stage 1 keeps the old offset, which gives
+   P0 in = 420 kPa and PR 2.63:
+   ```
+   PRtt    = (massFlowAve(Total Pressure in Stn Frame)@R1 Outlet + 600 [kPa]) / (massFlowAve(Total Pressure in Stn Frame)@R1 Inlet + 600 [kPa])
+   Mdotin  = massFlow()@R1 Inlet
+   Mdotout = massFlow()@R1 Outlet
+   ```
+5. **Post-processing on a real-gas run:**
+   - Take the work from
+     `massFlowAve(Total Enthalpy in Stn Frame)@R1 Outlet - massFlowAve(Total Enthalpy in Stn Frame)@R1 Inlet`
+     and run `cfd_postprocess.py --fluid r134a --dh0 …`. Post's derived
+     `Total Temperature in Stn Frame` read about 2 K low and gave η_tt > 1. Cross-check
+     the work with the blade + hub torque from the Out File's moment summary.
+   - For the impeller exit use **Insert ▸ Location ▸ Isosurface, Radius = 0.052 m**. A
+     Turbo Surface at streamwise 0.98 sits near the *domain* outlet (it includes the
+     diffuser), not at the blade trailing edge. Check `massFlow()` on it reads ±0.4776.
+   - If `Velocity Circumferential` or `Velocity Meridional` aren't recognised, make them
+     as user variables from the Cartesian components (axis Z):
+     `Ctheta = (x*Velocity in Stn Frame v - y*Velocity in Stn Frame u)/sqrt(x^2+y^2)`,
+     `Cr = (x*Velocity in Stn Frame u + y*Velocity in Stn Frame v)/sqrt(x^2+y^2)`,
+     `Cm = sqrt(Cr^2 + Velocity in Stn Frame w^2)`.
+6. **Restoring a `.wbpz` on AppStream:** copy it out of `My Files\OneDrive` to a local
+   folder (e.g. `D:\PhotonUser\CFD`) first. Restoring inside OneDrive fails with "The
+   device is not ready". Archive with results back to OneDrive when you're done.
+
+For a true two-stage run, add both as components in Turbo Mode
 with a **Stage (mixing-plane)** interface. The de-swirl/crossover isn't in the TurboGrid
 geometry, though, so stage-by-stage is the clean way to do it.
 

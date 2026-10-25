@@ -19,6 +19,8 @@ step-by-step SolidWorks and Ansys guides.
    then the optional full-machine Fluent run.
 4. `docs/01_design_basis.md`: what came from the IOM, what's assumed, and the meanline
    results.
+5. `docs/04_stage2_cfd_results.md`: stage-2 CFX results against the meanline, with the
+   work cross-checks and the averaging caveats.
 
 ## Files
 | Path | What |
