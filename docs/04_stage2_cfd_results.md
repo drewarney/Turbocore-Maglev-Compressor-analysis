@@ -87,6 +87,56 @@ about 5.5 % of the outlet area blocked by backflow. Single-number averages then 
 **Report:** PR 1.95, Δh0 15.5 kJ/kg, η_tt 0.90 (mass-averaged), with the true mixed-out
 performance somewhere in PR ≈ 1.73–1.95.
 
+## Angular momentum through the diffuser
+
+`massFlowAve(rCtheta)` with `rCtheta = sqrt(x^2+y^2)*Ctheta`:
+
+| Plane | r·Cθ |
+|---|---|
+| Impeller exit (r = 52 mm) | 4.66 m²/s |
+| Domain outlet | 4.61 m²/s |
+
+ω·r·Cθ at the exit is 14.6 kJ/kg, the Euler work. The 1 % fall through the vaneless
+diffuser is wall friction, which confirms the diffuser hub and shroud are correctly
+stationary (a rotating diffuser hub makes r·Cθ rise). The Turbo *Inlet to Outlet* chart
+(`report/figures/S2_rCtheta_inlet_outlet.png`) shows the same plateau but rises beyond
+streamwise ≈ 0.9; that's an averaging artifact next to the walled-off reverse-flow faces
+at the outlet, not physics. Quote the plane values.
+
+## Flow field (figures in `report/figures/`)
+
+- **Relative Mach, 10 / 50 / 90 % span** (`S2_B2B_Mrel_spans.png`): attached flow at the
+  hub; a low-momentum region beside the main blade toward the trailing edge grows with
+  span and fills much of the rear passage at 90 % (M_rel ≈ 0–0.2) next to a high-Mach
+  jet. Inlet tip M_rel ≈ 0.7 (meanline 0.73). Past the trailing edge M_rel is a
+  rotating-frame quantity in a stationary diffuser and means nothing.
+- **Absolute Mach, 50 % span** (`S2_B2B_Mabs_span050.png`): near-sonic exit jet
+  (M ≈ 0.9–1.0 locally), slowing to 0.5–0.6 at the outlet.
+- **Cr at r = 52 mm** (`S2_ImpExit_Cr.png`): reverse flow (Cr < 0) along the shroud
+  across most of the pitch, blade wakes as narrow strips, jet on the hub side. This is
+  why mass-averaged Cm < Cr at that plane.
+- **Tip-leakage streamlines** (`S2_TipLeakage_streamlines.png`, seeded at 97 % span,
+  coloured by entropy): leakage crosses the tips, mixes in the passage and leaves as a
+  high-entropy stream on the shroud side of the diffuser.
+- **Meridional entropy / velocity / temperature**: entropy rises along the shroud from
+  mid-passage; low velocity on the shroud side round the bend; velocity peaks at about
+  120 m/s at the impeller exit and only falls to 85–90 m/s by the outlet.
+- **Blade loading**: still to do. The Turbo blade-loading chart plots the main blade and
+  splitter as one series (no blade selector in 2026 R1), so it needs separating from the
+  CSV.
+
+## Wall resolution
+
+| Surface | y⁺ |
+|---|---|
+| Blades, area average / maximum | 3.0 / 70.5 |
+| Hub | 30.5 |
+| Shroud | 51.6 |
+| Diffuser hub | 26.6 |
+
+The blades are close to wall-resolved and the end walls are in the wall-function range.
+SST's automatic wall treatment covers both.
+
 ## Outlet state
 
 | | Value |

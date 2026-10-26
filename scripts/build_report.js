@@ -78,7 +78,7 @@ body.push(
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [t('Mechanical Engineering, California Polytechnic State University, San Luis Obispo')] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [todo('Course / advisor, if applicable')] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 1200 }, children: [t('Draft, October 2026')] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, children: [t('Status: draft. Covers the design basis, CAD model, CFD method and the first stage-1 CFD result. Design-point CFD, stage 2, the compressor map and structural analysis are still to come.', { italics: true, size: 20, color: '666666' })] }),
+  new Paragraph({ alignment: AlignmentType.CENTER, children: [t('Status: draft. Covers the design basis, CAD model, CFD method, the first stage-1 CFD result and the stage-2 design-point CFD. The design-point stage-1 run, the compressor map and structural analysis are still to come.', { italics: true, size: 20, color: '666666' })] }),
   new Paragraph({ children: [new PageBreak()] }),
 );
 
@@ -271,12 +271,70 @@ body.push(
   caption('Figure 9. Absolute velocity at the impeller exit (r = 52 mm).'),
 );
 
+// ---------------- 7 Stage-2 results
+const fig = (name) => path.join(ROOT, 'report/figures', name);
+body.push(
+  h1('7  Stage-2 CFD results'),
+  h2('7.1  Setup changes from stage 1'),
+  p('Stage 2 used the same single-passage approach with the stage-2 TurboGrid mesh (386,472 nodes, 358,685 hexahedra). The inlet was set to the meanline stage-1 exit state: total pressure 720.9 kPa absolute (120.9 kPa relative to a 600 kPa reference) and total temperature 305 K, with the design mass flow of 3.343 kg/s at the outlet. The run went to the 1000-iteration limit.'),
+  p('Two setup problems were found and fixed on the way. Without table generation, the R-134a real-gas property table stops at about 1 MPa absolute; stage 2 reaches about 1.4 MPa, so the first attempt clipped the pressure from the first iteration, ran away and stopped with a floating-point overflow. The final run used a generated table from 1 kPa to 4 MPa and 240 K to 480 K (200 points per axis) and had no property clipping. Second, the post-processing expressions copied from the stage-1 project still added the 300 kPa stage-1 reference pressure instead of 600 kPa.'),
+  h2('7.2  Overall performance'),
+  tcap('Table 10. Stage-2 performance: CFD (mass-averaged) vs meanline'),
+  table(['Quantity', 'CFD', 'Meanline'], [
+    ['Inlet / outlet total pressure (abs)', '720.6 / 1406 kPa', `${f(s2.P_in / 1e3)} / ${f(s2.P_out / 1e3)} kPa`],
+    ['Total pressure ratio', '1.951', f(s2.PR, 3)],
+    ['Specific work Δh₀', '15.54 kJ/kg', `${f(s2.work_kJkg, 2)} kJ/kg`],
+    ['Outlet total temperature (real gas, from Δh₀)', '333.2 K', `${f(s2.T_out)} K`],
+    ['Isentropic efficiency (total-to-total)', '0.90', '0.90 (impeller assumption)'],
+    ['Gas power, whole wheel', '51.9 kW', '≈ 55 kW'],
+    ['Outlet static pressure / temperature', '994.8 kPa / 319.7 K', '—'],
+    ['Outlet superheat above saturation', '7.4 K', '—'],
+  ], [4160, 2600, 2600]),
+  p(''),
+  p('The pressure ratio is within 1 % of the meanline and the efficiency matches the impeller assumption. The work is 6 % below the meanline: the impeller produces less exit swirl than the slip model predicted (work coefficient Cθ₂/U₂ = 0.55 against 0.63). CFD-Post\'s derived total temperature read about 2 K low for this real-gas case and implied an efficiency above 1; the outlet total temperature above is therefore computed from the solver\'s total-enthalpy rise with real-gas R-134a properties.'),
+  h2('7.3  Work and angular-momentum checks'),
+  tcap('Table 11. Stage-2 specific work from independent methods'),
+  table(['Method', 'How it is computed', 'Specific work'], [
+    ['Total-enthalpy rise', 'Mass-averaged total enthalpy, outlet minus inlet', '15.54 kJ/kg'],
+    ['Rotor torque', '2.314 N·m per passage (blade + rotating hub) × 3141.6 rad/s ÷ 0.4776 kg/s', '15.23 kJ/kg'],
+    ['Euler + shroud friction', 'ω·(r·Cθ) at r = 52 mm (14.6 kJ/kg) plus stationary-shroud friction torque × ω ÷ ṁ (0.62 kJ/kg)', '15.2 kJ/kg'],
+  ], [2400, 4960, 2000]),
+  p(''),
+  p('The three methods agree within 2 %. About 4 % of the rotor work goes into friction on the stationary shroud rather than into swirl. The mass-averaged angular momentum r·Cθ is 4.66 m²/s at the impeller exit and 4.61 m²/s at the domain outlet: it falls slightly through the vaneless diffuser, as wall friction should make it, which confirms that the diffuser walls are correctly modelled as stationary.'),
+  ...image(fig('S2_rCtheta_inlet_outlet.png'), 6.0, 'Figure 10. Mass-averaged angular momentum r·Cθ along the flow path (0 = inlet, 1 = outlet; impeller trailing edge at about 0.70). The rise beyond about 0.9 is an averaging artifact from reverse-flow faces at the outlet boundary; plane averages give 4.66 m²/s at the impeller exit and 4.61 m²/s at the outlet.'),
+  h2('7.4  Where the losses are'),
+  p('Mass-averaged static entropy rises by 5.1 J/(kg·K) between the inlet and the impeller exit and by a further 10.4 J/(kg·K) through the vaneless diffuser, so most of the stage loss is in the diffuser rather than the impeller. The diffuser exit flow is far from uniform: the mass-averaged absolute Mach number at the outlet is still 0.68, the total-to-static pressure ratio is only 1.38, and reverse flow blocks about 5.5 % of the outlet area. Because of this non-uniformity, single-number averages disagree: mass-averaged total pressure gives a pressure ratio of 1.95, while a uniform state rebuilt from the averaged static pressure, temperature and velocity gives 1.73. The true mixed-out performance lies between the two. The short vaneless diffuser leaves much of the exit kinetic energy unrecovered; in the real machine the return channel or volute does that job.'),
+  ...image(fig('S2_Meridional_entropy.png'), 4.6, 'Figure 11. Circumferentially averaged static entropy, stage 2. Entropy rises along the shroud from mid-passage and is carried through the impeller exit and the diffuser.'),
+  ...image(fig('S2_Meridional_velocity.png'), 4.6, 'Figure 12. Circumferentially averaged absolute velocity, stage 2. A low-velocity region forms on the shroud side around the bend; the velocity peaks at about 120 m/s at the impeller exit and falls only to about 85–90 m/s by the outlet.'),
+  h2('7.5  Flow field'),
+  p('The relative Mach number (Figure 13) shows clean, attached flow near the hub and a growing low-momentum region beside the main blade toward the trailing edge as the span increases. At 90 % span it fills much of the rear passage (relative Mach number 0–0.2), next to a high-velocity jet. This is the jet-wake pattern of centrifugal impellers, driven by tip leakage and secondary flow. The inlet relative Mach number at the tip is about 0.7, against 0.73 from the meanline. Downstream of the trailing edge the relative Mach number reflects the rotating reference frame and has no physical meaning in the stationary diffuser.'),
+  ...image(fig('S2_B2B_Mrel_spans.png'), 6.5, 'Figure 13. Relative Mach number, blade-to-blade view, stage 2 at the design point. The jagged line just after the trailing edges is a plotting artifact at the mesh-block interface.'),
+  p('In the absolute frame (Figure 14) the flow leaves the blades as a near-sonic jet (absolute Mach number 0.9–1.0 locally) and slows to about 0.5–0.6 at the outlet, with the blade wakes still visible as streaks.'),
+  ...image(fig('S2_B2B_Mabs_span050.png'), 4.6, 'Figure 14. Absolute Mach number at 50 % span, stage 2.'),
+  p('Just downstream of the impeller (Figure 15), a band of negative radial velocity runs along the shroud across most of the passage, with the blade wakes as narrow low-velocity strips and the jet on the hub side. This reverse flow is why the mass-averaged meridional velocity at this plane comes out lower than the mass-averaged radial velocity. Streamlines released in the tip gap (Figure 16) cross the blade tips, mix into the passage and leave as a high-entropy stream along the shroud side of the diffuser, which links the tip leakage to the shroud-side entropy in Figure 11.'),
+  ...image(fig('S2_ImpExit_Cr.png'), 6.5, 'Figure 15. Radial velocity Cr on the r = 52 mm surface just downstream of the impeller trailing edge (one passage, viewed radially inward, shroud at the bottom). Black lines are contours at 20 m/s intervals; negative values are reverse flow.'),
+  ...image(fig('S2_TipLeakage_streamlines.png'), 5.2, 'Figure 16. Relative-frame streamlines seeded at 97 % span (tip-clearance region), coloured by static entropy.'),
+  placeholder('Insert blade loading, main blade and splitter, at 20 %, 50 % and 80 % span'),
+  caption('Figure 17. Blade loading, stage 2.'),
+  h2('7.6  Mesh and convergence'),
+  p('Average y⁺ is about 3 on the blades (maximum 71) and 27–52 on the hub, shroud and diffuser hub. The SST model\'s automatic wall treatment switches between resolving the near-wall layer and using wall functions, so both ranges are acceptable; the blades are close to resolved, the end walls use wall functions. RMS residuals flattened at about 10⁻⁴ (mass) and 4 × 10⁻⁴ (momentum) from about iteration 100 onward, without diverging, which points to mild unsteadiness from the tip vortex and the diffuser exit rather than a setup problem. The final mass and energy imbalances were −0.25 % and −0.30 %.'),
+  tcap('Table 12. Stage-2 limitations'),
+  table(['Limitation', 'Effect'], [
+    ['R-134a stand-in instead of R-513A', 'Small property differences; same trends'],
+    ['Single passage, steady, no volute or return channel', 'Diffuser exit losses and non-uniformity not resolved downstream'],
+    ['Outlet close to the impeller with 5.5 % reverse-flow area', 'Averaged outlet totals uncertain; PR between 1.73 and 1.95'],
+    ['No blade or hub fillets', 'A few % extra blockage in the 4.2 mm exit passage not modelled'],
+    ['Residuals plateaued near 10⁻⁴', 'Averaged quantities steady to within about 1 %'],
+  ], [4680, 4680]),
+);
+
 // ---------------- Remaining work
 body.push(
-  h1('7  Remaining work'),
-  bullet('Design-point stage-1 run: 279.65 K inlet, 3.343 kg/s. Expected PR about 1.94 with R-134a properties.'),
+  h1('8  Remaining work'),
+  bullet('Design-point stage-1 run: 279.65 K inlet (or 300 K with R-134a), 3.343 kg/s, with property-table generation and the same post-processing as stage 2.'),
   bullet('Switch the material to a custom R-513A real-gas definition and quantify the difference from R-134a.'),
-  bullet('Stage-2 run and the combined two-stage pressure ratio.'),
+  bullet('Combined two-stage pressure ratio and power once the design-point stage-1 run is done.'),
+  bullet('Longer outlet domain for stage 2, to check whether the outlet reverse flow and the pressure-ratio averaging range shrink.'),
   bullet('Speed lines at 24,000–33,000 rpm to build a compressor map, including surge and choke limits.'),
   bullet('Optional structural checks: impeller stress at 115 % overspeed and rotor critical speed.'),
   bullet('Conclusions.'),
