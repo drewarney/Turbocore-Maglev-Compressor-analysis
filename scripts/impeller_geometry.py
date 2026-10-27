@@ -145,26 +145,36 @@ def write_xyz(path, pts):
     path.write_text("\n".join(f"{x:.4f} {y:.4f} {z:.4f}" for x, y, z in pts) + "\n")
 
 
+def stage_blades(i):
+    """Meridional lines and main-blade camber lines (hub and shroud) for stage i."""
+    s = DP[f"stage{i}"]
+    hub, shroud, L = meridional(s)
+    cm1 = s["Cm1"]
+    omega = DP["inputs"]["speed_rpm"] * 2 * math.pi / 60
+    b_in_h = math.degrees(math.atan(omega * s["D1h"] / 2 / cm1)) + INCIDENCE_DEG
+    b_in_s = math.degrees(math.atan(omega * s["D1t"] / 2 / cm1)) + INCIDENCE_DEG
+    b_out = DP["inputs"]["beta2b_deg"]
+    # common trailing-edge wrap = mean of the unmodified hub and shroud wraps,
+    # so the trailing edge is a straight radial line (no lean / rake)
+    target = 0.5 * (camber(hub, b_in_h, b_out)[1][-1] + camber(shroud, b_in_s, b_out)[1][-1])
+    bump_h = solve_bump(hub, b_in_h, b_out, target)
+    bump_s = solve_bump(shroud, b_in_s, b_out, target)
+    return dict(s=s, hub=hub, shroud=shroud, L=L, b_in_h=b_in_h, b_in_s=b_in_s, b_out=b_out,
+                bump_h=bump_h, bump_s=bump_s,
+                main_h=camber(hub, b_in_h, b_out, bump=bump_h),
+                main_s=camber(shroud, b_in_s, b_out, bump=bump_s))
+
+
 def main():
     for i in (1, 2):
-        s = DP[f"stage{i}"]
+        g = stage_blades(i)
+        s, hub, shroud, L = g["s"], g["hub"], g["shroud"], g["L"]
+        b_in_h, b_in_s, b_out, bump_h, bump_s = g["b_in_h"], g["b_in_s"], g["b_out"], g["bump_h"], g["bump_s"]
         out = ROOT / "cad_curves" / f"stage{i}"
         out.mkdir(parents=True, exist_ok=True)
-        hub, shroud, L = meridional(s)
-        cm1 = s["Cm1"]
-        omega = DP["inputs"]["speed_rpm"] * 2 * math.pi / 60
-        b_in_h = math.degrees(math.atan(omega * s["D1h"] / 2 / cm1)) + INCIDENCE_DEG
-        b_in_s = math.degrees(math.atan(omega * s["D1t"] / 2 / cm1)) + INCIDENCE_DEG
-        b_out = DP["inputs"]["beta2b_deg"]
         pitch = 2 * math.pi / 7
-
-        # common trailing-edge wrap = mean of the unmodified hub and shroud wraps,
-        # so the trailing edge is a straight radial line (no lean / rake)
-        target = 0.5 * (camber(hub, b_in_h, b_out)[1][-1] + camber(shroud, b_in_s, b_out)[1][-1])
-        bump_h = solve_bump(hub, b_in_h, b_out, target)
-        bump_s = solve_bump(shroud, b_in_s, b_out, target)
-        zh, th_h, bh, mh = camber(hub, b_in_h, b_out, bump=bump_h)
-        zs, th_s, bs, ms = camber(shroud, b_in_s, b_out, bump=bump_s)
+        zh, th_h, bh, mh = g["main_h"]
+        zs, th_s, bs, ms = g["main_s"]
         # splitter: same camber, rotated half a pitch, starting at SPLITTER_START
         zhs, th_hs, _, _ = camber(hub, b_in_h, b_out, SPLITTER_START, bump_h)
         zss, th_ss, _, _ = camber(shroud, b_in_s, b_out, SPLITTER_START, bump_s)

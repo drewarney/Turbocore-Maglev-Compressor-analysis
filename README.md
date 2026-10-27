@@ -21,6 +21,9 @@ step-by-step SolidWorks and Ansys guides.
    results.
 5. `docs/04_stage2_cfd_results.md`: stage-2 CFX results against the meanline, with the
    work cross-checks and the averaging caveats.
+6. `docs/05_manufacturing_cam.md` and **`drawings/Manufacturing_drawing_set.pdf`**: how the
+   impellers would be made (turned blank, 5-axis milling), machining drawings with GD&T,
+   fixture, CAM plan, tool access and cycle-time estimates.
 
 ## Files
 | Path | What |
@@ -32,6 +35,7 @@ step-by-step SolidWorks and Ansys guides.
 | `cad_curves/flowpath/` | The same gas-path walls as separate smooth XYZ curves, with straight-wall coordinates in `README.txt` |
 | `cad_curves/volute_sections.csv`, `rotor_segments.csv` | Volute sections, shaft steps |
 | `docs/design_point.json` | Every computed number (cycle, power, both stages) |
+| `docs/cam_summary.json` | Machining estimates: passage widths, flank-milling error, removal volume, cycle times |
 | `scripts/` | Generators (see below) |
 
 ## Regenerating everything
@@ -40,6 +44,7 @@ pip install -r requirements.txt
 python scripts/meanline.py           # design point  -> docs/design_point.json
 python scripts/impeller_geometry.py  # blade curves  -> cad_curves/
 cd scripts && python make_drawings.py   # drawing set -> drawings/
+python scripts/cam_analysis.py && python scripts/make_mfg_drawings.py   # CAM study + MFG sheets
 ```
 To change the design (speed, tonnage, condensing temperature), edit the constants at the
 top of `scripts/meanline.py` and re-run all three. After a CFD run,
